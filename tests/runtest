@@ -1,0 +1,96 @@
+#!/bin/bash
+
+if [ -t 1 ]; then
+    msg() { echo -e " \e[0;37m>> \e[0;32m${*} \e[0m"; }
+    err() { echo -e " \e[1;31m!! \e[0;33m${*} \e[0m"; }
+else
+    msg() { echo " >> $*"; }
+    err() { echo " !! $*"; }
+fi
+
+die() {
+    err "$*"
+    exit 1
+}
+
+
+TESTDIR="$(cd $(dirname "$0") && pwd)"
+[[ -n "$TESTDIR" && -d "$TESTDIR" && -d "$TESTDIR/playground" ]] || die "Failed to determine test dir from script path \"$0\""
+PLAYDIR="$TESTDIR/playground"
+mkdir -p "$PLAYDIR" || die "Failed to create playground dir $PLAYDIR"
+
+stepno=0
+
+step() {
+    let stepno+=1
+    msg "#${stepno}. $*"
+}
+
+cmd() {
+    "$@" || die "Exit status $? for cmd: $*"
+}
+
+run() {
+    let stepno+=1
+    msg "#${stepno}. Cmd: $*"
+    cmd "$@"
+}
+
+prepare() {
+    stepno=0
+    step "Prepearing playground..."
+    rm -rf "$PLAYDIR"/{repo,ws-*}
+    cmd svnadmin create "$PLAYDIR"/repo
+    SVNROOT="file://$PLAYDIR/repo"
+    cmd svn mkdir -m 'initial hierarchy' "$SVNROOT"/{tags,trunk,branches}
+}
+
+ws() {
+    [ -n "$1" ] || die "Missing argument for cmd 'ws'"
+    current_ws="$1"
+    current_ws_dir="$PLAYDIR/ws-${1##*/}"
+    [[ "$current_ws_dir" == "$PWD" ]] && return
+    if [ -d "$current_ws_dir" ]; then
+        msg "back to $1"
+        svnup
+        cmd cd "$current_ws_dir"
+    else
+        checkout "$1"
+    fi
+}
+
+checkout() {
+    [ -n "$1" ] || die "Missing argument for cmd 'ws'"
+    current_ws="$1"
+    current_ws_dir="$PLAYDIR/ws-${1##*/}"
+
+    cd "$PLAYDIR"
+    [ -d "$current_ws_dir" ] && cmd rm -rf "$current_ws_dir"
+
+    msg "checking out $1"
+    cmd svn co "$SVNROOT/$1" "$current_ws_dir"
+
+    cmd cd "$current_ws_dir"
+}
+
+branch() {
+    step "creating branch $1"
+    cmd svn cp -m "Step ${stepno}: creating branch $1" file://"$PLAYDIR"/repo/{trunk,branches/"$1"}
+}
+
+commit() {
+    step "commit to $current_ws"
+    cmd svn commit -m "Step ${stepno}: $*"
+}
+
+svnup() {
+    step "updating $current_ws"
+    cmd svn up
+}
+
+
+for testfile in "$TESTDIR"/test-*; do
+    msg "Running ${testfile##*/}"
+    prepare
+    source "$testfile"
+done
