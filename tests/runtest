@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Copyright 2012 Nikolay Orlyuk
+# Distributed under the terms of the GNU General Public License v2
+
 if [ -t 1 ]; then
     msg() { echo -e " \e[0;37m>> \e[0;32m${*} \e[0m"; }
     err() { echo -e " \e[1;31m!! \e[0;33m${*} \e[0m"; }

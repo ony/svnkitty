@@ -1,3 +1,6 @@
+# Copyright 2012 Nikolay Orlyuk
+# Distributed under the terms of the GNU General Public License v2
+
 ws trunk
 run mkdir -p p/{m1,m2}
 run svn add *
