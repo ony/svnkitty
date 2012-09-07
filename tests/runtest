@@ -3,12 +3,12 @@
 # Copyright 2012 Nikolay Orlyuk
 # Distributed under the terms of the GNU General Public License v2
 
-if [ -t 1 ]; then
-    msg() { echo -e " \e[0;37m>> \e[0;32m${*} \e[0m"; }
-    err() { echo -e " \e[1;31m!! \e[0;33m${*} \e[0m"; }
+if [ -t 2 ]; then
+    msg() { echo -e " \e[0;37m>> \e[0;32m${*} \e[0m" >&2; }
+    err() { echo -e " \e[1;31m!! \e[0;33m${*} \e[0m" >&2; }
 else
-    msg() { echo " >> $*"; }
-    err() { echo " !! $*"; }
+    msg() { echo " >> $*" >&2; }
+    err() { echo " !! $*" >&2; }
 fi
 
 die() {
@@ -21,6 +21,8 @@ TESTDIR="$(cd $(dirname "$0") && pwd)"
 [[ -n "$TESTDIR" && -d "$TESTDIR" && -d "$TESTDIR/playground" ]] || die "Failed to determine test dir from script path \"$0\""
 PLAYDIR="$TESTDIR/playground"
 mkdir -p "$PLAYDIR" || die "Failed to create playground dir $PLAYDIR"
+
+export PATH="$TESTDIR/..:$PATH"
 
 stepno=0
 
@@ -55,8 +57,8 @@ ws() {
     [[ "$current_ws_dir" == "$PWD" ]] && return
     if [ -d "$current_ws_dir" ]; then
         msg "back to $1"
-        svnup
         cmd cd "$current_ws_dir"
+        svnup
     else
         checkout "$1"
     fi
@@ -91,9 +93,25 @@ svnup() {
     cmd svn up
 }
 
+assert_mergeinfo() {
+    [ -n "$1" ] || die "Missing argument for assert_mergeinfo"
+    step "asserting that mergeinfo matches with $1"
+    cmd svn propget -R svn:mergeinfo > .mergeinfo.txt
+    diff -u "$TESTDIR/$1" .mergeinfo.txt || die "Assertion failed"
+}
 
-for testfile in "$TESTDIR"/test-*; do
+run_test() {
     msg "Running ${testfile##*/}"
     prepare
     source "$testfile"
-done
+}
+
+if [ -z "$*" ]; then
+    for testfile in "$TESTDIR"/test-*; do
+        run_test "$testfile"
+    done
+else
+    for testfile in "$@"; do
+        run_test "$testfile"
+    done
+fi

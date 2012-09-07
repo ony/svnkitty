@@ -40,6 +40,10 @@ ws trunk
 run svn merge -N {\^/branches/supmerge/,}p
 commit "partial supmerge"
 
+ws branches/submerge
+run svn merge {\^/trunk/,}p
+commit "rebase submerge on top of trunk"
+
 ws trunk
 assert_mergeinfo testdata-1-before.txt
 svn-mi-cleanup.py
