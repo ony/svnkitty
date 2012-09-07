@@ -51,11 +51,11 @@ prepare() {
 }
 
 ws() {
-    [ -n "$1" ] || die "Missing argument for cmd 'ws'"
+    [[ -n "$1" ]] || die "Missing argument for cmd 'ws'"
     current_ws="$1"
     current_ws_dir="$PLAYDIR/ws-${1##*/}"
     [[ "$current_ws_dir" == "$PWD" ]] && return
-    if [ -d "$current_ws_dir" ]; then
+    if [[ -d "$current_ws_dir" ]]; then
         msg "back to $1"
         cmd cd "$current_ws_dir"
         svnup
@@ -70,7 +70,7 @@ checkout() {
     current_ws_dir="$PLAYDIR/ws-${1##*/}"
 
     cd "$PLAYDIR"
-    [ -d "$current_ws_dir" ] && cmd rm -rf "$current_ws_dir"
+    [[ -d "$current_ws_dir" ]] && cmd rm -rf "$current_ws_dir"
 
     msg "checking out $1"
     cmd svn co "$SVNROOT/$1" "$current_ws_dir"
@@ -94,24 +94,40 @@ svnup() {
 }
 
 assert_mergeinfo() {
-    [ -n "$1" ] || die "Missing argument for assert_mergeinfo"
+    [[ -n "$1" ]] || die "Missing argument for assert_mergeinfo"
     step "asserting that mergeinfo matches with $1"
     cmd svn propget -R svn:mergeinfo > .mergeinfo.txt
     diff -u "$TESTDIR/$1" .mergeinfo.txt || die "Assertion failed"
 }
 
 run_test() {
-    msg "Running ${testfile##*/}"
+    msg "Running ${1##*/}"
     prepare
-    source "$testfile"
+    source "$1"
 }
 
-if [ -z "$*" ]; then
-    for testfile in "$TESTDIR"/test-*; do
-        run_test "$testfile"
-    done
+if [[ "$1" == "-wrapped" ]]; then
+    run_test "$2"
 else
-    for testfile in "$@"; do
-        run_test "$testfile"
-    done
+    total=0
+    fails=0
+
+    call_test() {
+        let total+=1
+        "$TESTDIR/runtest" -wrapped "$testfile" || let fails+=1
+    }
+
+    if [[ -z "$*" ]]; then
+        for testfile in "$TESTDIR"/test-*; do
+            call_test "$testfile"
+        done
+    else
+        for testfile in "$@"; do
+            call_test "$testfile"
+        done
+    fi
+
+    [[ "$fails" -lt "$total" ]] && msg "$(($total-$fails))/$total tests passed"
+    [[ "$fails" -gt 0 ]] && die "$fails/$total tests failed"
 fi
+
