@@ -16,6 +16,8 @@ die() {
     exit 1
 }
 
+trap "die 'Abort by user'" INT
+
 
 TESTDIR="$(cd $(dirname "$0") && pwd)"
 [[ -n "$TESTDIR" && -d "$TESTDIR" && -d "$TESTDIR/playground" ]] || die "Failed to determine test dir from script path \"$0\""
@@ -86,11 +88,14 @@ branch() {
 commit() {
     step "commit to $current_ws"
     cmd svn commit -m "Step ${stepno}: $*"
+    any_commit=1
 }
 
 svnup() {
+    [ -n "$any_commit" ] || return
     step "updating $current_ws"
     cmd svn up
+    any_commit=
 }
 
 assert_mergeinfo() {

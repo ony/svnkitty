@@ -1,0 +1,3 @@
+. - /branches/feature:3
+/branches/hotfix:5-8
+p/m1 - /branches/feature/p/m1:3-6
